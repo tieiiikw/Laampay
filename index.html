@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="so">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>LaamPay — Telebirr Online-ready Demo</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;background:#f6f8fb;margin:0;padding:18px}
+    .container{max-width:980px;margin:0 auto;display:grid;grid-template-columns:1fr 360px;gap:16px}
+    .card{background:#fff;padding:16px;border-radius:10px;box-shadow:0 6px 16px rgba(2,6,23,0.06)}
+    h2{margin:0 0 8px}
+    .balance{font-size:1.6rem;font-weight:700;color:#0b76ff}
+    button{padding:8px 12px;border-radius:8px;border:0;cursor:pointer}
+    .btn-primary{background:#0b76ff;color:#fff}
+    .btn-danger{background:#d9534f;color:#fff}
+    input,select{width:100%;padding:8px;margin:6px 0;border-radius:8px;border:1px solid #e6e9ee}
+    .tx{padding:10px;border-radius:8px;border:1px solid #f1f4f8;margin-bottom:8px;background:#fff}
+    .small{font-size:0.85rem;color:#666}
+    @media(max-width:900px){.container{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Main -->
+    <div class="card">
+      <h2>LaamPay — Telebirr Wallet</h2>
+      <div id="authArea" style="margin-bottom:12px">
+        <div id="registerForm">
+          <label class="small">Magac / User ID</label>
+          <input id="regUser" placeholder="tusaale: demo_user" />
+          <button id="btnRegister" class="btn-primary">Register (Mock)</button>
+        </div>
+        <div id="loginForm" style="display:none">
+          <label class="small">User ID</label>
+          <input id="loginUser" placeholder="geli user id" />
+          <button id="btnLogin" class="btn-primary">Login</button>
+        </div>
+      </div>
+
+      <div id="walletArea" style="display:none">
+        <div class="small">Account: <span id="acctId"></span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+          <div>
+            <div class="small">Balance</div>
+            <div id="balance" class="balance">ETB 0.00</div>
+          </div>
+          <div>
+            <button id="openDeposit" class="btn-primary">Deposit</button>
+            <button id="openWithdraw" class="btn-danger">Withdraw</button>
+            <button id="logoutBtn" style="margin-left:8px">Logout</button>
+          </div>
+        </div>
+
+        <hr style="margin:12px 0;border:none;border-top:1px solid #f0f2f5" />
+
+        <h4>Transactions</h4>
+        <div id="txList" style="max-height:360px;overflow:auto"></div>
+      </div>
+    </div>
+
+    <!-- Side -->
+    <div class="card">
+      <h3>Quick Actions</h3>
+      <div class="small">Deposit via Telebirr (online-ready)</div>
+
+      <div style="margin-top:8px">
+        <label class="small">Amount (ETB)</label>
+        <input id="quickAmount" type="number" min="1" value="100" />
+        <label class="small">Phone (Telebirr)</label>
+        <input id="quickPhone" placeholder="09xxxxxxxx" />
+        <button id="quickDepositBtn" class="btn-primary" style="width:100%;margin-top:6px">Start Deposit</button>
+      </div>
+
+      <hr style="margin:12px 0;border:none;border-top:1px solid #f0f2f5" />
+
+      <h4>Local Testing Tools</h4>
+      <div class="small">
+        - For webhook testing use <code>ngrok</code> and set callback URL in Telebirr merchant portal.<br>
+        - Server must be HTTPS to accept Telebirr callbacks (production).
+      </div>
+    </div>
+  </div>
+
+  <!-- Deposit Modal (simple) -->
+  <div id="depositModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);align-items:center;justify-content:center">
+    <div style="background:#fff;padding:14px;border-radius:10px;max-width:420px;margin:40px auto">
+      <h3>Confirm Deposit</h3>
+      <div class="small">Amount: <strong id="dAmount">ETB 0</strong></div>
+      <div class="small">Phone: <strong id="dPhone"></strong></div>
+      <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end">
+        <button id="cancelDeposit">Cancel</button>
+        <button id="confirmDeposit" class="btn-primary">Continue to Pay</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Withdraw Modal -->
+  <div id="withdrawModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);align-items:center;justify-content:center">
+    <div style="background:#fff;padding:14px;border-radius:10px;max-width:420px;margin:40px auto">
+      <h3>Withdraw</h3>
+      <label class="small">Bank</label>
+      <input id="wBank" placeholder="Commercial Bank of Ethiopia" />
+      <label class="small">Account number</label>
+      <input id="wAccount" placeholder="1234567890" />
+      <label class="small">Amount ETB</label>
+      <input id="wAmount" type="number" />
+      <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end">
+        <button id="cancelWithdraw">Cancel</button>
+        <button id="confirmWithdraw" class="btn-danger">Start Withdraw</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // CONFIG: change if backend deployed somewhere else
+    const API_BASE = ""; // empty => same origin, else https://your-backend.com
+
+    // Simple auth (mock)
+    function saveUser(uid){ localStorage.setItem('laam_user', uid); }
+    function getUser(){ return localStorage.getItem('laam_user'); }
+    function logout(){ localStorage.removeItem('laam_user'); location.reload(); }
+
+    // DOM
+    const regUser = document.getElementById('regUser');
+    const btnRegister = document.getElementById('btnRegister');
+    const loginUser = document.getElementById('loginUser');
+    const btnLogin = document.getElementById('btnLogin');
+    const walletArea = document.getElementById('walletArea');
+    const acctId = document.getElementById('acctId');
+    const balanceEl = document.getElementById('balance');
+    const txList = document.getElementById('txList');
+    const openDeposit = document.getElementById('openDeposit');
+    const openWithdraw = document.getElementById('openWithdraw');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    // modal
+    const depositModal = document.getElementById('depositModal');
+    const dAmount = document.getElementById('dAmount');
+    const dPhone = document.getElementById('dPhone');
+    const cancelDeposit = document.getElementById('cancelDeposit');
+    const confirmDeposit = document.getElementById('confirmDeposit');
+
+    const withdrawModal = document.getElementById('withdrawModal');
+    const cancelWithdraw = document.getElementById('cancelWithdraw');
+    const confirmWithdraw = document.getElementById('confirmWithdraw');
+
+    // Register (mock)
+    btnRegister.onclick = ()=>{
+      const u = regUser.value.trim();
+      if(!u) return alert('Geli user id');
+      saveUser(u);
+      showApp();
+    };
+
+    btnLogin.onclick = ()=>{
+      const u = loginUser.value.trim();
+      if(!u) return alert('Geli user id');
+      saveUser(u);
+      showApp();
+    };
+
+    function showApp(){
+      const u = getUser();
+      if(!u) { document.getElementById('loginForm').style.display='block'; document.getElementById('registerForm').style.display='block'; return; }
+      document.getElementById('registerForm').style.display='none';
+      document.getElementById('loginForm').style.display='none';
+      walletArea.style.display='block';
+      acctId.textContent = u;
+      // start polling wallet
+      pollWallet();
+      setInterval(pollWallet, 3500);
+    }
+
+    // Poll wallet data
+    async function pollWallet(){
+      const user = getUser();
+      if(!user) return;
+      try{
+        const r = await fetch(API_BASE + `/api/wallet/${encodeURIComponent(user)}`);
+        if(!r.ok) throw new Error('Server error');
+        const data = await r.json();
+        balanceEl.textContent = 'ETB ' + Number(data.balance).toFixed(2);
+        txList.innerHTML = '';
+        (data.transactions||[]).slice().reverse().forEach(tx=>{
+          const div = document.createElement('div'); div.className='tx';
+          div.innerHTML = `<div><strong>${tx.type.toUpperCase()}</strong> • ETB ${Number(tx.amount).toFixed(2)}</div>
+            <div class="small">${tx.status} • ${new Date(tx.created).toLocaleString()}</div>`;
+          txList.appendChild(div);
+        });
+      }catch(e){
+        // console.error(e);
+      }
+    }
+
+    // quick deposit
+    document.getElementById('quickDepositBtn').onclick = async ()=>{
+      const amount = Number(document.getElementById('quickAmount').value);
+      const phone = document.getElementById('quickPhone').value.trim();
+      if(!amount || amount <=0) return alert('Geli amount sax ah');
+      if(!phone) return alert('Geli phone');
+      openDepositConfirm(amount, phone);
+    };
+
+    function openDepositConfirm(amount, phone){
+      dAmount.textContent = 'ETB ' + Number(amount).toFixed(2);
+      dPhone.textContent = phone;
+      depositModal.style.display = 'flex';
+      // store on modal
+      depositModal.dataset.amount = amount;
+      depositModal.dataset.phone = phone;
+    }
+
+    cancelDeposit.onclick = ()=> depositModal.style.display='none';
+
+    confirmDeposit.onclick = async ()=>{
+      const user = getUser();
+      if(!user) return alert('Login first');
+      const amount = depositModal.dataset.amount;
+      const phone = depositModal.dataset.phone;
+      confirmDeposit.disabled = true;
+      confirmDeposit.textContent = 'Creating payment...';
+      try{
+        const res = await fetch(API_BASE + '/api/deposit', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ userId: user, phone, amount })
+        });
+        const data = await res.json();
+        if(!res.ok) throw new Error(data.error || 'Deposit failed');
+        // If backend returns `checkoutUrl` for H5 or redirect page, open it
+        if(data.checkoutUrl){
+          // open Telebirr checkout in new window (user completes payment in Telebirr)
+          window.open(data.checkoutUrl, '_blank');
+          alert('Telebirr checkout window opened. Kadib xaqiijin callback server ayaa cusbooneysiin doonta balance-ka.');
+        } else {
+          alert(data.message || 'Deposit initiated');
+        }
+      }catch(err){
+        alert(err.message || 'Error');
+      } finally {
+        confirmDeposit.disabled = false;
+        confirmDeposit.textContent = 'Continue to Pay';
+        depositModal.style.display='none';
+      }
+    };
+
+    // Withdraw
+    openWithdraw.onclick = ()=> withdrawModal.style.display = 'flex';
+    cancelWithdraw.onclick = ()=> withdrawModal.style.display = 'none';
+    confirmWithdraw.onclick = async ()=>{
+      const user = getUser();
+      if(!user) return alert('Login first');
+      const bank = document.getElementById('wBank').value.trim();
+      const account = document.getElementById('wAccount').value.trim();
+      const amount = Number(document.getElementById('wAmount').value);
+      if(!bank || !account || !amount) return alert('Geli dhamaan macluumaadka');
+      confirmWithdraw.disabled = true; confirmWithdraw.textContent = 'Processing...';
+      try{
+        const r = await fetch(API_BASE + '/api/withdraw', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ userId: user, bank, account, amount })
+        });
+        const res = await r.json();
+        if(!r.ok) throw new Error(res.error || 'Withdraw failed');
+        alert(res.message || 'Withdraw started');
+      }catch(e){
+        alert(e.message || 'Error');
+      }finally{
+        confirmWithdraw.disabled = false; confirmWithdraw.textContent = 'Start Withdraw';
+        withdrawModal.style.display = 'none';
+      }
+    };
+
+    // logout
+    logoutBtn.onclick = ()=> { if(confirm('Logout?')) { logout(); } };
+
+    // startup
+    const existing = getUser();
+    if(existing) showApp();
+  </script>
+</body>
+</html>
