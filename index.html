@@ -683,7 +683,7 @@ requestBtn.addEventListener('click', () => {
         await db.collection("users").doc(uid).set({
           username, email, phone, balance: 1000, createdAt: Date.now()
         });
-        alert("Account created! Default balance: 1000 ETB");
+        alert("Account created! Default balance: 10 ETB");
       } catch (err) {
         alert(err.message);
       }
