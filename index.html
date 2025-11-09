@@ -1,0 +1,1173 @@
+<!DOCTYPE html>  
+<html lang="en">  
+<head>  
+  <meta charset="UTF-8">  
+  <title>LaamPay — ETB Wallet</title>  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">  
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>  
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>  
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>    
+  <style>  
+  
+* { box-sizing: border-box; font-family: 'Poppins', sans-serif; }  
+    
+  body {  
+    margin: 0;  
+    background: linear-gradient(135deg, #007bff, #00d4ff);  
+    color: #fff;  
+    display: flex;  
+    justify-content: center;  
+    align-items: flex-start;  
+    min-height: 100vh;  
+    padding: 20px;  
+  }  
+
+  .container {  
+    background: rgba(255, 255, 255, 0.15);  
+    backdrop-filter: blur(15px);  
+    border-radius: 20px;  
+    padding: 25px;  
+    width: 100%;  
+    max-width: 400px;  
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);  
+    animation: fadeIn 0.6s ease;  
+    position: relative;  
+  }  
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.verification-badge {
+  font-size: 14px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  margin-left: auto; /* Tani waxay ka dhigaysaa badge-ka inuu tago dhinaca midigta */
+}
+
+.verified {
+  background: rgba(0, 255, 179, 0.2);
+  color: #00ffb3;
+  border: 1px solid #00ffb3;
+}
+
+.unverified {
+  background: rgba(255, 165, 0, 0.2);
+  color: #ffa500;
+  border: 1px solid #ffa500;
+}
+
+  h2 { text-align: center; font-size: 1.8em; margin-bottom: 10px; }  
+  h3 { text-align: center; font-size: 1.2em; margin-top: 15px; }  
+ 
+  .balance-card {  
+    text-align: center;  
+    margin-bottom: 15px;  
+    padding: 15px;  
+    background: rgba(255,255,255,0.2);  
+    border-radius: 10px;  
+  }  
+
+  .action-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+  }
+
+  .action-btn {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .action-btn.active {
+    background: #00ffb3;
+    color: #003344;
+  }
+
+  .action-btn:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  .form-section {
+    background: rgba(255,255,255,0.15);
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    animation: slideDown 0.3s ease;
+  }
+
+  .form-group {
+    margin-bottom: 15px;
+  }
+
+  .form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+  }
+
+  input, button, select, textarea {  
+    width: 100%;  
+    padding: 12px;  
+    margin: 8px 0;  
+    border: none;  
+    border-radius: 10px;  
+    font-size: 15px;  
+    outline: none;  
+  }  
+
+  input, select, textarea {  
+    background: rgba(255, 255, 255, 0.25);  
+    color: #fff;  
+  }  
+
+  input::placeholder, textarea::placeholder { color: #eee; }  
+
+  button {  
+    background: #00ffb3;  
+    color: #003344;  
+    font-weight: bold;  
+    cursor: pointer;  
+    transition: all 0.3s;  
+  }  
+
+  button:hover { background: #00ffaa; }  
+
+  button.secondary {  
+    background: rgba(255, 255, 255, 0.25);  
+    color: #fff;  
+  }  
+
+  button.secondary:hover {  
+    background: rgba(255, 255, 255, 0.35);  
+  }  
+
+  button.danger {  
+    background: #ff5252;  
+    color: #fff;  
+  }  
+
+  button.danger:hover {  
+    background: #ff3838;  
+  }  
+
+  .hidden { display: none; }  
+
+  .tx-item {  
+    background: rgba(255,255,255,0.1);  
+    padding: 12px;  
+    border-radius: 10px;  
+    margin: 8px 0;  
+    font-size: 14px;  
+    border-left: 4px solid #00ffb3;  
+  }  
+
+  .tx-item.received {
+    border-left-color: #007bff;
+  }
+
+  .tx-item.pending {
+    border-left-color: #ffb300;
+  }
+
+  .status-message {
+    text-align: center;
+    margin-top: 8px;
+    padding: 8px;
+    border-radius: 5px;
+    font-size: 14px;
+  }
+
+  .status-success {
+    background: rgba(0, 255, 179, 0.2);
+    color: #00ffb3;
+  }
+
+  .status-error {
+    background: rgba(255, 82, 82, 0.2);
+    color: #ff5252;
+  }
+
+  .settings-btn {  
+    position: absolute;  
+    top: 20px;  
+    right: 20px;  
+    background: rgba(255, 255, 255, 0.2);  
+    border: none;  
+    border-radius: 50%;  
+    width: 40px;  
+    height: 40px;  
+    display: flex;  
+    justify-content: center;  
+    align-items: center;  
+    cursor: pointer;  
+    color: #fff;  
+    font-size: 18px;  
+  }  
+
+  .features {  
+    margin-top: 30px;  
+    display: grid;  
+    grid-template-columns: repeat(2, 1fr);  
+    gap: 15px;  
+  }  
+
+  .feature {  
+    background: rgba(255, 255, 255, 0.1);  
+    padding: 15px;  
+    border-radius: 10px;  
+    text-align: center;  
+  }  
+
+  .feature i {  
+    font-size: 1.5rem;  
+    margin-bottom: 10px;  
+    color: #00ffb3;  
+  }  
+*{box-sizing:border-box;font-family:'Poppins',sans-serif;}
+    body{
+      margin:0;
+      background:linear-gradient(135deg,#007bff,#00d4ff);
+      color:#fff;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      min-height:100vh;
+      padding:20px;
+    }
+    .container{
+      background:rgba(255,255,255,0.15);
+      backdrop-filter:blur(15px);
+      border-radius:20px;
+      padding:25px;
+      width:100%;
+      max-width:400px;
+      box-shadow:0 10px 25px rgba(0,0,0,0.2);
+      animation:fadeIn 0.6s ease;
+      position:relative;
+    }
+    h3{text-align:center;margin-top:0;}
+    .balance-card{
+      text-align:center;
+      margin-bottom:15px;
+      padding:15px;
+      background:rgba(255,255,255,0.2);
+      border-radius:10px;
+    }
+    .action-buttons{
+      display:flex;
+      gap:10px;
+      justify-content:center;
+      margin-bottom:10px;
+    }
+    .action-btn{
+      flex:1;
+      padding:12px;
+      border:none;
+      border-radius:10px;
+      background:rgba(255,255,255,0.25);
+      color:#fff;
+      font-weight:600;
+      cursor:pointer;
+      transition:0.3s;
+    }
+    .action-btn.active{background:#00ffb3;color:#003344;}
+    .form-section{
+      background:rgba(255,255,255,0.15);
+      padding:15px;
+      border-radius:10px;
+      margin-top:10px;
+      display:none;
+      animation:slideDown 0.3s ease;
+    }
+    .form-section.show{display:block;}
+    label{font-weight:500;font-size:14px;}
+    input,textarea,button{
+      width:100%;padding:10px;margin-top:5px;
+      border:none;border-radius:8px;font-size:14px;
+    }
+    input,textarea{
+      background:rgba(255,255,255,0.25);color:#fff;
+    }
+    input::placeholder,textarea::placeholder{color:#eee;}
+    button{background:#00ffb3;color:#003344;font-weight:bold;cursor:pointer;}
+    button:hover{background:#00ffaa;}
+    .status-message{text-align:center;margin-top:8px;padding:8px;border-radius:5px;font-size:14px;}
+    .status-success{background:rgba(0,255,179,0.2);color:#00ffb3;}
+    .status-error{background:rgba(255,82,82,0.2);color:#ff5252;}
+    @keyframes slideDown{from{opacity:0;transform:translateY(-10px);}to{opacity:1;transform:translateY(0);}}
+    @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+    .bottom-buttons{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      margin-top:15px;
+    }
+    .danger{
+      background:#ff5252;
+      color:#fff;
+      font-weight:bold;
+      border:none;
+      border-radius:8px;
+      padding:10px;
+      cursor:pointer;
+      width:100%;
+      margin
+
+  .modal-content {  
+    background: rgba(255, 255, 255, 0.15);  
+    backdrop-filter: blur(15px);  
+    border-radius: 20px;  
+    padding: 25px;  
+    width: 90%;  
+    max-width: 400px;  
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);  
+    animation: fadeIn 0.6s ease;  
+  }  
+
+  .modal-header {  
+    display: flex;  
+    justify-content: space-between;  
+    align-items: center;  
+    margin-bottom: 15px;  
+  }  
+
+  .close-modal {  
+    background: none;  
+    border: none;  
+    color: #fff;  
+    font-size: 24px;  
+    cursor: pointer;  
+  }  
+
+  .auth-buttons {  
+    display: flex;  
+    gap: 10px;  
+    margin-bottom: 20px;  
+  }  
+
+  .auth-btn {  
+    flex: 1;  
+    padding: 15px;  
+    border: none;  
+    border-radius: 10px;  
+    background: rgba(255, 255, 255, 0.2);  
+    color: white;  
+    font-size: 1.1rem;  
+    font-weight: 600;  
+    cursor: pointer;  
+    transition: all 0.3s ease;  
+  }  
+
+  .auth-btn.active {  
+    background: #00ffb3;  
+    color: #003344;  
+  }  
+
+  .auth-btn:hover:not(.active) {  
+    background: rgba(255, 255, 255, 0.3);  
+  }  
+
+  .form-container {  
+    overflow: hidden;  
+  }  
+
+  .input-group {  
+    margin-bottom: 20px;  
+  }  
+
+  .input-group label {  
+    display: block;  
+    margin-bottom: 8px;  
+    font-weight: 500;  
+  }  
+
+  @keyframes fadeIn {  
+    from { opacity: 0; transform: translateY(15px); }  
+    to { opacity: 1; transform: translateY(0); }  
+  }  
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (max-width: 480px) {  
+    .container {  
+      padding: 20px;  
+    }  
+
+    .features {  
+      grid-template-columns: 1fr;  
+    }  
+  }  
+  </style>  
+</head>  
+<body>  
+  <!-- AUTH SECTION -->
+  <div class="container" id="authSection">
+    <div class="logo">
+      <h1>💸 LaamPay</h1>
+      <p>Your Secure ETB Wallet</p>
+    </div>
+    
+    <div class="auth-buttons">
+      <button class="auth-btn active" id="registerBtn">Register</button>
+      <button class="auth-btn" id="loginBtn">Login</button>
+    </div>
+    
+    <div class="form-container">
+      <!-- REGISTER FORM -->
+      <div class="form" id="registerForm">
+        <div class="input-group">
+          <label for="regUsername">Username</label>
+          <input type="text" id="regUsername" placeholder="Enter your username">
+        </div>
+        
+        <div class="input-group">
+          <label for="regEmail">Email</label>
+          <input type="email" id="regEmail" placeholder="Enter your email">
+        </div>
+        
+        <div class="input-group">
+          <label for="regPhone">Phone Number</label>
+          <input type="tel" id="regPhone" placeholder="Enter your phone number">
+        </div>
+        
+        <div class="input-group">
+          <label for="regPassword">Password</label>
+          <input type="password" id="regPassword" placeholder="Create a password">
+        </div>
+        
+        <button class="submit-btn" id="btnRegister">Create Account</button>
+      </div>
+      
+      <!-- LOGIN FORM -->
+      <div class="form hidden" id="loginForm">
+        <div class="input-group">
+          <label for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" placeholder="Enter your email">
+        </div>
+        
+        <div class="input-group">
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" placeholder="Enter your password">
+        </div>
+        
+        <button class="submit-btn" id="btnLogin">Sign In</button>
+      </div>
+    </div>
+    
+    <div class="features">
+      <div class="feature">
+        <i class="fas fa-shield-alt"></i>
+        <h3>Secure</h3>
+        <p>Bank-level security</p>
+      </div>
+      <div class="feature">
+        <i class="fas fa-bolt"></i>
+        <h3>Fast</h3>
+        <p>Instant transactions</p>
+      </div>
+      <div class="feature">
+        <i class="fas fa-globe"></i>
+        <h3>Global</h3>
+        <p>Send money anywhere</p>
+      </div>
+      <div class="feature">
+        <i class="fas fa-headset"></i>
+        <h3>Support</h3>
+        <p>24/7 customer service</p>
+      </div>
+     </div>
+    </div> 
+    
+ 
+<!-- WALLET SECTION -->
+  <div class="container hidden" id="walletSection">
+    <div class="user-info">
+      <h3>Welcome, <span id="userName">User</span></h3>
+      <span id="verificationStatus" class="verification-badge unverified">
+        <i class="fas fa-times-circle"></i> Unverified
+      </span>
+    </div>
+    <div class="balance-card">
+      <p>Current Balance</p>
+      <h2><span id="userBalance">0.00</span> ETB</h2>
+      <button id="btnRefresh">🔄 Refresh</button>
+    </div>
+<div class="action-buttons">
+      <button id="sendBtnMain" class="action-btn">📤 Send</button>
+      <button id="requestBtnMain" class="action-btn">📥 Request</button>
+    </div>
+  <!-- SEND FORM -->
+    <div id="sendForm" class="form-section">
+      <label>Send to (Username/Email/Phone)</label>
+      <input type="text" id="sendTo" placeholder="Enter recipient details">
+      <label>Amount (ETB)</label>
+      <input type="number" id="sendAmount" placeholder="Enter amount">
+      <label>Note (Optional)</label>
+      <textarea id="sendNote" rows="2" placeholder="Add a note"></textarea>
+      <button id="btnSend">Send Money</button>
+      <div id="sendStatus" class="status-message"></div>
+    </div>
+
+    <!-- REQUEST FORM -->
+    <div id="requestForm" class="form-section">
+      <label>Request from (Username/Email/Phone)</label>
+      <input type="text" id="requestFrom" placeholder="Enter user details">
+      <label>Amount (ETB)</label>
+      <input type="number" id="requestAmount" placeholder="Enter amount">
+      <label>Note (Optional)</label>
+      <textarea id="requestNote" rows="2" placeholder="Add a note"></textarea>
+      <button id="btnRequest">Send Request</button>
+      <div id="requestStatus" class="status-message"></div>
+    </div>
+
+
+
+ 
+  <div class="bottom-buttons">
+      <button id="btnTxHistory" class="action-btn">📜 History</button>
+      <button id="btnSettings" class="action-btn">⚙️ Settings</button>
+    </div>
+
+<!-- SETTINGS MODAL -->    <div id="settingsModal" class="modal hidden">  
+    <div class="modal-content">  
+      <div class="modal-header">  
+        <h5>Settings</h5>  
+        <button class="close-modal" id="closeSettings">×</button>  
+      
+  <div class="form-group">  
+        <h4>Profile Information</h4>
+        <div class="user-info">  
+  <span>Verification Status:</span>  
+  <span id="profileVerificationStatus" class="verification-badge unverified">  
+    <i class="fas fa-times-circle"></i> Unverified  
+  </span>  
+</div>
+    <input id="profileUsername" placeholder="Username">  
+    <input id="profileEmail" placeholder="Email" disabled>  
+    <input id="profilePhone" placeholder="Phone Number">  
+    <button id="btnUpdateProfile">Update Profile</button>  
+    <div id="profileStatus" class="status-message"></div>  
+  </div>  
+
+  <hr style="border-color: rgba(255,255,255,0.2); margin:15px 0;">  
+
+<!-- KYC Verification -->
+<div class="form-group">  
+  <h5>KYC Verification</h5>  
+  <p style="font-size: 14px; margin-bottom: 15px;">Complete your KYC to unlock all features</p>  
+  
+  <select id="kycDocumentType">  
+    <option value="">Select Document Type</option>  
+    <option value="national_id">National ID</option>  
+    <option value="passport">Passport</option>  
+    <option value="driving_license">Driving License</option>  
+  </select>  
+  
+  <input id="kycDocumentNumber" placeholder="Document Number">  
+  <input id="kycFullName" placeholder="Full Name (as on document)">  
+  <input id="kycDateOfBirth" type="date" placeholder="Date of Birth">  
+  <textarea id="kycAddress" placeholder="Address" rows="3"></textarea>  
+  
+  <!-- Document Upload -->
+  <div class="file-upload">
+    <label for="kycDocumentFile" class="file-upload-label">
+      📷 Upload Document Image (Front)
+    </label>
+    <input type="file" id="kycDocumentFile" accept="image/*">
+    <div id="kycFileName" class="file-name"></div>
+  </div>
+  </div>
+  </div>
+ 
+  
+  <button id="btnSubmitKYC">Submit KYC</button>  
+  <div id="kycStatus" class="status-message"></div>  
+</div>
+  </div>
+ 
+
+    <div id="txList" class="hidden" style="margin-top:15px;"></div>
+    <button id="btnLogout" class="danger">Logout</button>
+  </div>
+  </div>
+  </div>
+  
+
+  <script>  
+    // --- Firebase Config ---  
+    const firebaseConfig = {  
+      apiKey: "AIzaSyC1Vwy0v0DT0xJvJL2frTw-ol8sfZQX3hI",  
+      authDomain: "laampay-71a0e.firebaseapp.com",  
+      projectId: "laampay-71a0e",  
+      storageBucket: "laampay-71a0e.firebasestorage.app",  
+      messagingSenderId: "280848370047",  
+      appId: "1:280848370047:web:0b0066863b7bd0d564324a",  
+      measurementId: "G-B833BYL4L6"  
+    };  
+
+    firebase.initializeApp(firebaseConfig);  
+    const auth = firebase.auth();  
+    const db = firebase.firestore();  
+
+    const authSection = document.getElementById('authSection');  
+    const walletSection = document.getElementById('walletSection');  
+    const userName = document.getElementById('userName');  
+    const userBalance = document.getElementById('userBalance');  
+    const txList = document.getElementById('txList');  
+    const sendStatus = document.getElementById('sendStatus');  
+    let currentUser = null;  
+
+    // Auth Forms Toggle
+    document.getElementById('registerBtn').addEventListener('click', () => {
+      document.getElementById('registerBtn').classList.add('active');
+      document.getElementById('loginBtn').classList.remove('active');
+      document.getElementById('registerForm').classList.remove('hidden');
+      document.getElementById('loginForm').classList.add('hidden');
+    });
+
+    document.getElementById('loginBtn').addEventListener('click', () => {
+      document.getElementById('loginBtn').classList.add('active');
+      document.getElementById('registerBtn').classList.remove('active');
+      document.getElementById('loginForm').classList.remove('hidden');
+      document.getElementById('registerForm').classList.add('hidden');
+    });
+
+    /// Send/Request Forms Toggle for your HTML
+const sendBtn = document.getElementById('sendBtnMain');
+const requestBtn = document.getElementById('requestBtnMain');
+const sendForm = document.getElementById('sendForm');
+const requestForm = document.getElementById('requestForm');
+sendBtn.addEventListener('click', () => {
+  const isShown = !sendForm.classList.contains('show'); // toggle state
+
+  sendForm.classList.toggle('show', isShown);           // show/hide send form
+  requestForm.classList.remove('show');                 // hide request form
+  sendBtn.classList.toggle('active', isShown);          // button active state
+  requestBtn.classList.remove('active');               // reset request button
+});
+
+requestBtn.addEventListener('click', () => {
+  const isShown = !requestForm.classList.contains('show'); // toggle state
+  requestForm.classList.toggle('show', isShown);           // show/hide request form
+  sendForm.classList.remove('show');                        // hide send form
+  requestBtn.classList.toggle('active', isShown);          // button active state
+  sendBtn.classList.remove('active');                      // reset send button
+});
+
+
+    // Register
+    document.getElementById('btnRegister').onclick = async () => {
+      const username = document.getElementById('regUsername').value.trim();
+      const email = document.getElementById('regEmail').value.trim();
+      const phone = document.getElementById('regPhone').value.trim();
+      const password = document.getElementById('regPassword').value.trim();
+
+      if (!username || !email || !password) return alert("Please fill all fields");
+      try {
+        const cred = await auth.createUserWithEmailAndPassword(email, password);
+        const uid = cred.user.uid;
+        await db.collection("users").doc(uid).set({
+          username, email, phone, balance: 1000, createdAt: Date.now()
+        });
+        alert("Account created! Default balance: 1000 ETB");
+      } catch (err) {
+        alert(err.message);
+      }
+    };
+
+    // Login
+    document.getElementById('btnLogin').onclick = async () => {
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value.trim();
+      try {
+        await auth.signInWithEmailAndPassword(email, password);
+      } catch (err) {
+        alert(err.message);
+      }
+    };
+
+    // Auth state
+    auth.onAuthStateChanged(async user => {
+      if (user) {
+        currentUser = user;
+        authSection.classList.add("hidden");
+        walletSection.classList.remove("hidden");
+        loadWallet();
+        loadProfileData();
+      } else {
+        walletSection.classList.add("hidden");
+        authSection.classList.remove("hidden");
+      }
+    });
+
+// Update loadWallet function to include verification status
+async function loadWallet() {  
+  const doc = await db.collection("users").doc(currentUser.uid).get();  
+  if (!doc.exists) return alert("No wallet found!");  
+  const data = doc.data();  
+  userName.innerText = data.username || data.email;  
+  userBalance.innerText = (data.balance || 0).toFixed(2);  
+  updateVerificationStatus(data.kycStatus || 'unverified');
+}
+
+      
+// Load profile data for settings
+    async function loadProfileData() {
+      const doc = await db.collection("users").doc(currentUser.uid).get();
+      if (doc.exists) {
+        const data = doc.data();
+        document.getElementById('profileUsername').value = data.username || '';
+        document.getElementById('profileEmail').value = data.email || '';
+        document.getElementById('profilePhone').value = data.phone || '';
+      }
+    }
+
+    document.getElementById('btnRefresh').onclick = loadWallet;  
+
+        // Send Money
+    document.getElementById('btnSend').onclick = async () => {
+      const to = document.getElementById('sendTo').value.trim();
+      const amount = parseFloat(document.getElementById('sendAmount').value.trim());
+      const note = document.getElementById('sendNote').value.trim();
+      
+      if (!to || isNaN(amount) || amount <= 0) {
+        sendStatus.innerText = "❌ Please enter valid amount and recipient";
+        sendStatus.className = "status-message status-error";
+        return;
+      }
+
+      const senderRef = db.collection("users").doc(currentUser.uid);
+      const senderDoc = await senderRef.get();
+      const senderData = senderDoc.data();
+
+      let recipientDoc;
+      for (let field of ["username","email","phone"]) {
+        const snap = await db.collection("users").where(field,"==",to).get();
+        if (!snap.empty) { recipientDoc = snap.docs[0]; break; }
+      }
+      
+      if (!recipientDoc) {
+        sendStatus.innerText = "❌ Recipient not found";
+        sendStatus.className = "status-message status-error";
+        return;
+      }
+      
+      const recipientId = recipientDoc.id;
+      const recipientData = recipientDoc.data();
+      
+      if (recipientId === currentUser.uid) {
+        sendStatus.innerText = "❌ Cannot send to yourself";
+        sendStatus.className = "status-message status-error";
+        return;
+      }
+      
+      if ((senderData.balance || 0) < amount) {
+        sendStatus.innerText = "❌ Insufficient funds";
+        sendStatus.className = "status-message status-error";
+        return;
+      }
+
+      try {
+        await db.runTransaction(async (tx) => {
+          const senderSnap = await tx.get(senderRef);
+          const recSnap = await tx.get(db.collection("users").doc(recipientId));
+          const newSenderBal = (senderSnap.data().balance || 0) - amount;
+          const newRecBal = (recSnap.data().balance || 0) + amount;
+          tx.update(senderRef, { balance: newSenderBal });
+          tx.update(db.collection("users").doc(recipientId), { balance: newRecBal });
+          
+          // Create transaction record
+          const txData = {
+            fromUserId: currentUser.uid,
+            fromUsername: senderData.username,
+            fromPhone: senderData.phone,
+            toUserId: recipientId,
+            toUsername: recipientData.username,
+            toPhone: recipientData.phone,
+            amount,
+            note,
+            timestamp: Date.now(),
+            type: 'transfer'
+          };
+          const txRef = db.collection("transactions").doc();
+          tx.set(txRef, txData);
+          
+          // Store transaction ID for receipt
+          txData.transferId = txRef.id;
+          return txData;
+        }).then((txData) => {
+          // Show receipt after successful transaction
+          showReceipt(txData);
+          
+          sendStatus.innerText = "✅ Transaction successful!";
+          sendStatus.className = "status-message status-success";
+          document.getElementById('sendAmount').value = "";
+          document.getElementById('sendTo').value = "";
+          document.getElementById('sendNote').value = "";
+          loadWallet();
+        });
+        
+      } catch (e) {
+        sendStatus.innerText = "❌ Failed: " + e.message;
+        sendStatus.className = "status-message status-error";
+      }
+    };
+function showReceipt(data) {
+  // Haddii hore modal jiro, ka saar
+  const oldModal = document.getElementById("receiptModal");
+  if (oldModal) oldModal.remove();
+
+  // Modal container
+  const modal = document.createElement("div");
+  modal.id = "receiptModal";
+  Object.assign(modal.style, {
+    position: "fixed",
+    top: "0",
+    left: "0",
+    width: "100vw",
+    height: "100vh",
+    background: "rgba(0,0,0,0.6)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: "9999",
+    padding: "10px",
+    boxSizing: "border-box",
+  });
+
+  // Receipt box
+  const content = document.createElement("div");
+  Object.assign(content.style, {
+    background: "#003344",
+    color: "#fff",
+    padding: "20px",
+    borderRadius: "12px",
+    width: "340px",
+    maxWidth: "95%",
+    boxShadow: "0 0 10px rgba(0,0,0,0.3)",
+    textAlign: "left",
+    fontFamily: "monospace",
+    opacity: "0",           // fade-in
+    transform: "scale(0.95)", // slight scale effect
+    transition: "all 0.25s ease-in-out",
+  });
+
+  content.innerHTML = `
+    <h2 style="text-align:center; color:#00ffb3;">✅ Success!</h2>
+    <h4 style="text-align:center;">Transfer Successful</h4>
+    <hr style="opacity:0.2; margin:10px 0;">
+    <h3 style="text-align:center; color:#00ffb3;">ETB ${data.amount}</h3>
+    <div style="margin-top:15px; line-height:1.6;">
+      <p><strong>From:</strong>      ${data.fromUsername || "-"}</p>
+      <p><strong>To:</strong>        ${data.toUsername || "-"}</p>
+      <p><strong>Date:</strong>      ${new Date().toLocaleString()}</p>
+      <p><strong>Transfer ID:</strong> TX-${Math.floor(Math.random()*1000000)}</p>
+      <p><strong>Description:</strong> ${data.note || "No note"}</p>
+    </div>
+    <button id="closeReceiptBtn" style="
+      width:100%; 
+      margin-top:15px; 
+      background:#00ffb3; 
+      color:#003344; 
+      padding:10px; 
+      border:none; 
+      border-radius:8px; 
+      font-weight:bold;
+    ">Close</button>
+  `;
+
+  modal.appendChild(content);
+  document.body.appendChild(modal);
+
+  // Small timeout for fade-in
+  setTimeout(() => {
+    content.style.opacity = "1";
+    content.style.transform = "scale(1)";
+  }, 10);
+
+  // Close button
+  document.getElementById("closeReceiptBtn").addEventListener("click", () => {
+    modal.remove();
+  });
+}
+
+// ✅ Example
+function onTransactionSuccess() {
+  showReceipt({
+    fromUsername: "Ahmed",
+    toUsername: "Mohamed",
+    amount: "15",
+    note: "Ok"
+  });
+}
+
+    // Request Money
+    document.getElementById('btnRequest').onclick = async () => {
+      const from = document.getElementById('requestFrom').value.trim();
+      const amount = parseFloat(document.getElementById('requestAmount').value.trim());
+      const note = document.getElementById('requestNote').value.trim();
+      
+      if (!from || isNaN(amount) || amount <= 0) {
+        requestStatus.innerText = "❌ Please enter valid amount and user";
+        requestStatus.className = "status-message status-error";
+        return;
+      }
+      
+      let requesterDoc;
+      for (let field of ["username","email","phone"]) {
+        const snap = await db.collection("users").where(field,"==",from).get();
+        if (!snap.empty) { requesterDoc = snap.docs[0]; break; }
+      }
+      
+      if (!requesterDoc) {
+        requestStatus.innerText = "❌ User not found";
+        requestStatus.className = "status-message status-error";
+        return;
+      }
+      
+      const requesterId = requesterDoc.id;
+      const requesterData = requesterDoc.data();
+      
+      if (requesterId === currentUser.uid) {
+        requestStatus.innerText = "❌ Cannot request from yourself";
+        requestStatus.className = "status-message status-error";
+        return;
+      }
+
+      try {
+        await db.collection("moneyRequests").add({
+          fromUserId: currentUser.uid,
+          fromUsername: userName.innerText,
+          toUserId: requesterId,
+          toUsername: requesterData.username,
+          amount,
+          note,
+          status: 'pending',
+          timestamp: Date.now()
+        });
+        
+        requestStatus.innerText = "✅ Money request sent!";
+        requestStatus.className = "status-message status-success";
+        document.getElementById('requestAmount').value = "";
+        document.getElementById('requestFrom').value = "";
+        document.getElementById('requestNote').value = "";
+      } catch (e) {
+        requestStatus.innerText = "❌ Failed: " + e.message;
+        requestStatus.className = "status-message status-error";
+      }
+    };
+ 
+    
+
+    // Logout  
+    document.getElementById('btnLogout').onclick = () => auth.signOut(); 
+// Settings Modal
+    document.getElementById('btnSettings').onclick = () => {
+      document.getElementById('settingsModal').classList.remove('hidden');
+    };
+
+    document.getElementById('closeSettings').onclick = () => {
+      document.getElementById('settingsModal').classList.add('hidden');
+    };
+
+    // Update Profile
+    document.getElementById('btnUpdateProfile').onclick = async () => {
+      const username = document.getElementById('profileUsername').value.trim();
+      const phone = document.getElementById('profilePhone').value.trim();
+      
+      if (!username) {
+        profileStatus.innerText = "❌ Username is required";
+        profileStatus.className = "status-message status-error";
+        return;
+      }
+      
+      try {
+        await db.collection("users").doc(currentUser.uid).update({
+          username,
+          phone
+        });
+        
+        profileStatus.innerText = "✅ Profile updated successfully!";
+        profileStatus.className = "status-message status-success";
+        loadWallet(); // Refresh to show updated username
+      } catch (e) {
+        profileStatus.innerText = "❌ Failed: " + e.message;
+        profileStatus.className = "status-message status-error";
+      }
+    };
+// KYC Document Upload
+document.getElementById('kycDocumentFile').addEventListener('change', function(e) {
+  const fileName = e.target.files[0] ? e.target.files[0].name : 'No file chosen';
+  document.getElementById('kycFileName').textContent = fileName;
+});
+
+// Submit KYC
+document.getElementById('btnSubmitKYC').onclick = async () => {
+  const documentType = document.getElementById('kycDocumentType').value;
+  const documentNumber = document.getElementById('kycDocumentNumber').value.trim();
+  const fullName = document.getElementById('kycFullName').value.trim();
+  const dateOfBirth = document.getElementById('kycDateOfBirth').value;
+  const address = document.getElementById('kycAddress').value.trim();
+  const documentFile = document.getElementById('kycDocumentFile').files[0];
+  
+  if (!documentType || !documentNumber || !fullName || !dateOfBirth || !address || !documentFile) {
+    kycStatus.innerText = "❌ Please fill all KYC fields and upload document image";
+    kycStatus.className = "status-message status-error";
+    return;
+  }
+  
+  try {
+    kycStatus.innerText = "⏳ Uploading KYC...";
+    kycStatus.className = "status-message status-success";
+    
+    // Convert image to base64
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const kycImage = e.target.result;
+        
+        await db.collection("users").doc(currentUser.uid).update({
+          kyc: {
+            documentType,
+            documentNumber,
+            fullName,
+            dateOfBirth,
+            address,
+            kycImage: kycImage, // Store base64 image
+            submittedAt: Date.now(),
+            status: 'pending'
+          },
+          kycStatus: 'pending', // For easy querying
+          kycAt: Date.now()
+        });
+        
+        kycStatus.innerText = "✅ KYC submitted successfully! Under review";
+        kycStatus.className = "status-message status-success";
+        
+        // Refresh verification status
+        updateVerificationStatus('pending');
+        
+      } catch (e) {
+        kycStatus.innerText = "❌ Failed: " + e.message;
+        kycStatus.className = "status-message status-error";
+      }
+    };
+    reader.readAsDataURL(documentFile);
+    
+  } catch (e) {
+    kycStatus.innerText = "❌ Failed: " + e.message;
+    kycStatus.className = "status-message status-error";
+  }
+};
+
+// Update verification status display
+function updateVerificationStatus(status) {
+  const verificationStatusEl = document.getElementById('verificationStatus');
+  const profileVerificationStatusEl = document.getElementById('profileVerificationStatus');
+  
+  if (status === 'verified') {
+    verificationStatusEl.innerHTML = '<i class="fas fa-check-circle"></i> Verified';
+    verificationStatusEl.className = 'verification-badge verified';
+    profileVerificationStatusEl.innerHTML = '<i class="fas fa-check-circle"></i> Verified';
+    profileVerificationStatusEl.className = 'verification-badge verified';
+  } else if (status === 'pending') {
+    verificationStatusEl.innerHTML = '<i class="fas fa-clock"></i> Under Review';
+    verificationStatusEl.className = 'verification-badge pending';
+    profileVerificationStatusEl.innerHTML = '<i class="fas fa-clock"></i> Under Review';
+    profileVerificationStatusEl.className = 'verification-badge pending';
+  } else {
+    verificationStatusEl.innerHTML = '<i class="fas fa-times-circle"></i> Unverified';
+    verificationStatusEl.className = 'verification-badge unverified';
+    profileVerificationStatusEl.innerHTML = '<i class="fas fa-times-circle"></i> Unverified';
+    profileVerificationStatusEl.className = 'verification-badge unverified';
+  }
+}
+
+// Load verification status
+async function loadVerificationStatus() {
+  const doc = await db.collection("users").doc(currentUser.uid).get();
+  if (doc.exists) {
+    const data = doc.data();
+    updateVerificationStatus(data.kycStatus || 'unverified');
+  }
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+  const btnTxHistory = document.getElementById("btnTxHistory");
+  const txList = document.getElementById("txList");
+
+  btnTxHistory.addEventListener("click", async () => {
+    // Toggle display
+    txList.classList.toggle("hidden");
+
+    if (!txList.classList.contains("hidden")) {
+      txList.innerHTML = "<p>Loading transaction history...</p>";
+
+      try {
+        const user = firebase.auth().currentUser;
+        if (!user) throw new Error("User not logged in");
+
+        const userId = user.uid;
+
+        const snapshot = await firebase.firestore()
+          .collection("transactions")
+          .where("userId", "==", userId)
+          .orderBy("date", "desc")
+          .get();
+
+        if (snapshot.empty) {
+          txList.innerHTML = "<p>No transactions found.</p>";
+        } else {
+          let html = "";
+          snapshot.forEach(doc => {
+            const tx = doc.data();
+            html += `
+              <div class="tx-item">
+                <p><strong>${tx.type}</strong>: ${tx.amount} ETB</p>
+                <p>To/From: ${tx.counterparty}</p>
+                <p>Date: ${tx.date.toDate().toLocaleString()}</p>
+                <hr>
+              </div>
+            `;
+          });
+          txList.innerHTML = html;
+        }
+
+      } catch (err) {
+        console.error(err);
+        txList.innerHTML = "<p>Error loading transactions.</p>";
+      }
+    }
+  });
+});
+    
+
+    
+const statusEl = document.getElementById("profileVerificationStatus");
+
+  if (isVerified) {
+    statusEl.classList.remove("unverified");
+    statusEl.classList.add("verified");
+    statusEl.innerHTML = '<i class="fas fa-check-circle"></i> Verified';
+  } else {
+    statusEl.classList.remove("verified");
+    statusEl.classList.add("unverified");
+    statusEl.innerHTML = '<i class="fas fa-times-circle"></i> Unverified';
+  }
+</script>
+</body>  
+</html>
