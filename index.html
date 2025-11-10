@@ -778,7 +778,7 @@
         const cred = await auth.createUserWithEmailAndPassword(email, password);
         const uid = cred.user.uid;
         await db.collection("users").doc(uid).set({
-          username, email, phone, balance: 1000, createdAt: Date.now()
+          username, email, phone, balance: 10, createdAt: Date.now()
         });
         alert("Account created! Default balance: 1000 ETB");
       } catch (err) {
