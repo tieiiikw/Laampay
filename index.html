@@ -1132,7 +1132,94 @@ const statusEl = document.getElementById("profileVerificationStatus");
     }
 
     document.getElementById('btnRefresh').onclick = loadWallet;  
+function showReceipt(data) {
+  // Haddii hore modal jiro, ka saar
+  const oldModal = document.getElementById("receiptModal");
+  if (oldModal) oldModal.remove();
 
+  // Modal container
+  const modal = document.createElement("div");
+  modal.id = "receiptModal";
+  Object.assign(modal.style, {
+    position: "fixed",
+    top: "0",
+    left: "0",
+    width: "100vw",
+    height: "100vh",
+    background: "rgba(0,0,0,0.6)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: "9999",
+    padding: "10px",
+    boxSizing: "border-box",
+  });
+
+  // Receipt box
+  const content = document.createElement("div");
+  Object.assign(content.style, {
+    background: "#003344",
+    color: "#fff",
+    padding: "20px",
+    borderRadius: "12px",
+    width: "340px",
+    maxWidth: "95%",
+    boxShadow: "0 0 10px rgba(0,0,0,0.3)",
+    textAlign: "left",
+    fontFamily: "monospace",
+    opacity: "0",           // fade-in
+    transform: "scale(0.95)", // slight scale effect
+    transition: "all 0.25s ease-in-out",
+  });
+
+  content.innerHTML = `
+    <h2 style="text-align:center; color:#00ffb3;">✅ Success!</h2>
+    <h4 style="text-align:center;">Transfer Successful</h4>
+    <hr style="opacity:0.2; margin:10px 0;">
+    <h3 style="text-align:center; color:#00ffb3;">ETB ${data.amount}</h3>
+    <div style="margin-top:15px; line-height:1.6;">
+      <p><strong>From:</strong>      ${data.fromUsername || "-"}</p>
+      <p><strong>To:</strong>        ${data.toUsername || "-"}</p>
+      <p><strong>Date:</strong>      ${new Date().toLocaleString()}</p>
+      <p><strong>Transfer ID:</strong> TX-${Math.floor(Math.random()*1000000)}</p>
+      <p><strong>Description:</strong> ${data.note || "No note"}</p>
+    </div>
+    <button id="closeReceiptBtn" style="
+      width:100%; 
+      margin-top:15px; 
+      background:#00ffb3; 
+      color:#003344; 
+      padding:10px; 
+      border:none; 
+      border-radius:8px; 
+      font-weight:bold;
+    ">Close</button>
+  `;
+
+  modal.appendChild(content);
+  document.body.appendChild(modal);
+
+  // Small timeout for fade-in
+  setTimeout(() => {
+    content.style.opacity = "1";
+    content.style.transform = "scale(1)";
+  }, 10);
+
+  // Close button
+  document.getElementById("closeReceiptBtn").addEventListener("click", () => {
+    modal.remove();
+  });
+}
+
+// ✅ Example
+function onTransactionSuccess() {
+  showReceipt({
+    fromUsername: "Ahmed",
+    toUsername: "Mohamed",
+    amount: "15",
+    note: "Ok"
+  });
+}
   </script>
 </body>  
 </html>
