@@ -846,12 +846,6 @@ async function loadWallet() {
         return;
       }
 
-      if (!currentUser) {
-        sendStatus.innerText = "❌ Please log in first";
-        sendStatus.className = "status-message status-error";
-        return;
-      }
-
       const senderRef = db.collection("users").doc(currentUser.uid);
       const senderDoc = await senderRef.get();
       const senderData = senderDoc.data();
@@ -892,11 +886,14 @@ async function loadWallet() {
           tx.update(senderRef, { balance: newSenderBal });
           tx.update(db.collection("users").doc(recipientId), { balance: newRecBal });
           
+          // Create transaction record
           const txData = {
             fromUserId: currentUser.uid,
             fromUsername: senderData.username,
+            fromPhone: senderData.phone,
             toUserId: recipientId,
             toUsername: recipientData.username,
+            toPhone: recipientData.phone,
             amount,
             note,
             timestamp: Date.now(),
@@ -905,8 +902,13 @@ async function loadWallet() {
           const txRef = db.collection("transactions").doc();
           tx.set(txRef, txData);
           
+          // Store transaction ID for receipt
+          txData.transferId = txRef.id;
           return txData;
         }).then((txData) => {
+          // Show receipt after successful transaction
+          showReceipt(txData);
+          
           sendStatus.innerText = "✅ Transaction successful!";
           sendStatus.className = "status-message status-success";
           document.getElementById('sendAmount').value = "";
@@ -920,6 +922,151 @@ async function loadWallet() {
         sendStatus.className = "status-message status-error";
       }
     };
+function showReceipt(data) {
+  // Haddii hore modal jiro, ka saar
+  const oldModal = document.getElementById("receiptModal");
+  if (oldModal) oldModal.remove();
+
+  // Modal container
+  const modal = document.createElement("div");
+  modal.id = "receiptModal";
+  Object.assign(modal.style, {
+    position: "fixed",
+    top: "0",
+    left: "0",
+    width: "100vw",
+    height: "100vh",
+    background: "rgba(0,0,0,0.6)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: "9999",
+    padding: "10px",
+    boxSizing: "border-box",
+  });
+
+  // Receipt box
+  const content = document.createElement("div");
+  Object.assign(content.style, {
+    background: "#003344",
+    color: "#fff",
+    padding: "20px",
+    borderRadius: "12px",
+    width: "340px",
+    maxWidth: "95%",
+    boxShadow: "0 0 10px rgba(0,0,0,0.3)",
+    textAlign: "left",
+    fontFamily: "monospace",
+    opacity: "0",           // fade-in
+    transform: "scale(0.95)", // slight scale effect
+    transition: "all 0.25s ease-in-out",
+  });
+
+  content.innerHTML = `
+    <h2 style="text-align:center; color:#00ffb3;">✅ Success!</h2>
+    <h4 style="text-align:center;">Transfer Successful</h4>
+    <hr style="opacity:0.2; margin:10px 0;">
+    <h3 style="text-align:center; color:#00ffb3;">ETB ${data.amount}</h3>
+    <div style="margin-top:15px; line-height:1.6;">
+      <p><strong>From:</strong>      ${data.fromUsername || "-"}</p>
+      <p><strong>To:</strong>        ${data.toUsername || "-"}</p>
+      <p><strong>Date:</strong>      ${new Date().toLocaleString()}</p>
+      <p><strong>Transfer ID:</strong> TX-${Math.floor(Math.random()*1000000)}</p>
+      <p><strong>Description:</strong> ${data.note || "No note"}</p>
+    </div>
+    <button id="closeReceiptBtn" style="
+      width:100%; 
+      margin-top:15px; 
+      background:#00ffb3; 
+      color:#003344; 
+      padding:10px; 
+      border:none; 
+      border-radius:8px; 
+      font-weight:bold;
+    ">Close</button>
+  `;
+
+  modal.appendChild(content);
+  document.body.appendChild(modal);
+
+  // Small timeout for fade-in
+  setTimeout(() => {
+    content.style.opacity = "1";
+    content.style.transform = "scale(1)";
+  }, 10);
+
+  // Close button
+  document.getElementById("closeReceiptBtn").addEventListener("click", () => {
+    modal.remove();
+  });
+}
+
+// ✅ Example
+function onTransactionSuccess() {
+  showReceipt({
+    fromUsername: "Ahmed",
+    toUsername: "Mohamed",
+    amount: "15",
+    note: "Ok"
+  });
+}
+
+    // Request Money
+    document.getElementById('btnRequest').onclick = async () => {
+      const from = document.getElementById('requestFrom').value.trim();
+      const amount = parseFloat(document.getElementById('requestAmount').value.trim());
+      const note = document.getElementById('requestNote').value.trim();
+      
+      if (!from || isNaN(amount) || amount <= 0) {
+        requestStatus.innerText = "❌ Please enter valid amount and user";
+        requestStatus.className = "status-message status-error";
+        return;
+      }
+      
+      let requesterDoc;
+      for (let field of ["username","email","phone"]) {
+        const snap = await db.collection("users").where(field,"==",from).get();
+        if (!snap.empty) { requesterDoc = snap.docs[0]; break; }
+      }
+      
+      if (!requesterDoc) {
+        requestStatus.innerText = "❌ User not found";
+        requestStatus.className = "status-message status-error";
+        return;
+      }
+      
+      const requesterId = requesterDoc.id;
+      const requesterData = requesterDoc.data();
+      
+      if (requesterId === currentUser.uid) {
+        requestStatus.innerText = "❌ Cannot request from yourself";
+        requestStatus.className = "status-message status-error";
+        return;
+      }
+
+      try {
+        await db.collection("moneyRequests").add({
+          fromUserId: currentUser.uid,
+          fromUsername: userName.innerText,
+          toUserId: requesterId,
+          toUsername: requesterData.username,
+          amount,
+          note,
+          status: 'pending',
+          timestamp: Date.now()
+        });
+        
+        requestStatus.innerText = "✅ Money request sent!";
+        requestStatus.className = "status-message status-success";
+        document.getElementById('requestAmount').value = "";
+        document.getElementById('requestFrom').value = "";
+        document.getElementById('requestNote').value = "";
+      } catch (e) {
+        requestStatus.innerText = "❌ Failed: " + e.message;
+        requestStatus.className = "status-message status-error";
+      }
+    };
+ 
 
     // Logout  
     document.getElementById('btnLogout').onclick = () => auth.signOut();
@@ -1132,94 +1279,7 @@ const statusEl = document.getElementById("profileVerificationStatus");
     }
 
     document.getElementById('btnRefresh').onclick = loadWallet;  
-function showReceipt(data) {
-  // Haddii hore modal jiro, ka saar
-  const oldModal = document.getElementById("receiptModal");
-  if (oldModal) oldModal.remove();
 
-  // Modal container
-  const modal = document.createElement("div");
-  modal.id = "receiptModal";
-  Object.assign(modal.style, {
-    position: "fixed",
-    top: "0",
-    left: "0",
-    width: "100vw",
-    height: "100vh",
-    background: "rgba(0,0,0,0.6)",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: "9999",
-    padding: "10px",
-    boxSizing: "border-box",
-  });
-
-  // Receipt box
-  const content = document.createElement("div");
-  Object.assign(content.style, {
-    background: "#003344",
-    color: "#fff",
-    padding: "20px",
-    borderRadius: "12px",
-    width: "340px",
-    maxWidth: "95%",
-    boxShadow: "0 0 10px rgba(0,0,0,0.3)",
-    textAlign: "left",
-    fontFamily: "monospace",
-    opacity: "0",           // fade-in
-    transform: "scale(0.95)", // slight scale effect
-    transition: "all 0.25s ease-in-out",
-  });
-
-  content.innerHTML = `
-    <h2 style="text-align:center; color:#00ffb3;">✅ Success!</h2>
-    <h4 style="text-align:center;">Transfer Successful</h4>
-    <hr style="opacity:0.2; margin:10px 0;">
-    <h3 style="text-align:center; color:#00ffb3;">ETB ${data.amount}</h3>
-    <div style="margin-top:15px; line-height:1.6;">
-      <p><strong>From:</strong>      ${data.fromUsername || "-"}</p>
-      <p><strong>To:</strong>        ${data.toUsername || "-"}</p>
-      <p><strong>Date:</strong>      ${new Date().toLocaleString()}</p>
-      <p><strong>Transfer ID:</strong> TX-${Math.floor(Math.random()*1000000)}</p>
-      <p><strong>Description:</strong> ${data.note || "No note"}</p>
-    </div>
-    <button id="closeReceiptBtn" style="
-      width:100%; 
-      margin-top:15px; 
-      background:#00ffb3; 
-      color:#003344; 
-      padding:10px; 
-      border:none; 
-      border-radius:8px; 
-      font-weight:bold;
-    ">Close</button>
-  `;
-
-  modal.appendChild(content);
-  document.body.appendChild(modal);
-
-  // Small timeout for fade-in
-  setTimeout(() => {
-    content.style.opacity = "1";
-    content.style.transform = "scale(1)";
-  }, 10);
-
-  // Close button
-  document.getElementById("closeReceiptBtn").addEventListener("click", () => {
-    modal.remove();
-  });
-}
-
-// ✅ Example
-function onTransactionSuccess() {
-  showReceipt({
-    fromUsername: "Ahmed",
-    toUsername: "Mohamed",
-    amount: "15",
-    note: "Ok"
-  });
-}
   </script>
 </body>  
 </html>
